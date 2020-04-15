@@ -1,5 +1,6 @@
 #The compiler: gcc for C programs, define as g++ for C++
 CC = gcc
+CXX = g++
 RM = rm
 
 # The build target executable
@@ -10,6 +11,7 @@ INCLUDES = -I.
 
 #Defines library paths in addition to /usr/lib
 #LFLAGS = -Llib
+LDFLAGS = -L/usr/local/lib -lgtest -l pthread
 
 #Defines any libraries to link into executable
 #LIB = -lmylib -m
@@ -17,6 +19,7 @@ INCLUDES = -I.
 #Define source files
 SRC = src/main.c src/atm.c
 OBJS = $(SRC:.c=.o)
+TEST = test/test.cc
 
 #Compiler flags:
 # -g     adds debugging information to the executable file
@@ -29,8 +32,13 @@ all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(TARGET) $(OBJS) $(LFLAGS) $(LIBS)
+
 .c.o:
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+check:
+	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS)
+
 clean:
 	$(RM) -rf $(TARGET)\
 		*.dSYM \
