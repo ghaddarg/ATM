@@ -43,3 +43,4 @@ clean:
 	$(RM) -rf $(TARGET)\
 		*.dSYM \
 		$(OBJS) \
+		.DS_Store\
