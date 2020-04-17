@@ -1,3 +1,11 @@
+/* XXX: TODO: 
+1. Add file save/load for NVM
+2. Add Cmake
+3. Add unit tests
+4. Myabe use usb as bank cards??
+
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
