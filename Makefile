@@ -7,7 +7,7 @@ RM = rm
 TARGET = atm
 
 #Defines any directories containing header files other than /usr/include
-INCLUDES = -I.
+INCLUDES = .
 
 #Defines library paths in addition to /usr/lib
 #LFLAGS = -Llib
@@ -24,17 +24,17 @@ TEST = test/test.cc
 #Compiler flags:
 # -g     adds debugging information to the executable file
 # -Wall  turns on most, but not all, compiler warnings
-#CFLAGS = -g -Wall -I$(INCLUDES)
+CFLAGS = -g -Wall -I$(INCLUDES)
 
 .PHONY:
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(TARGET) $(OBJS) $(LFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LFLAGS) $(LIBS)
 
 .c.o:
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 check:
 	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS)
