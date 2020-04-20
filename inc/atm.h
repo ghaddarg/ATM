@@ -15,8 +15,9 @@
 bool is_card_inserted(void);
 bool is_new_account(const char * file_name);
 atm_status_t set_up_new_account(const char * file_name);
-void get_nvm(const char * file_name)
+void get_nvm(const char * file_name);
 atm_status_t pin_check(void);
+bool is_pin_correct(const char * entered_pin);
 
 /********************************************************************************/
 /*                             OPERATION FUNCTIONS                              */

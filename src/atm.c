@@ -28,31 +28,66 @@ const char * welcome_msg = "Welcome to ATM System.\nPlease choose one of the fol
 
 static double balance = 0.00;
 static char pin[] = "0000";
+static char account_num[ACCOUNT_NUM] = {'0', 'x', '8', 'A', '2', 'B', '\0'};
 
 //XXX: TODO: Use LIBUSBP
 bool card_inserted = true;
+bool update_flag = false;
 
 /********************************************************************************/
 /*                               PRIVATE FUNCTIONS                              */
 /********************************************************************************/
 bool is_new_account(const char * file_name)
 {
-	printf("Account %s\n", file_name);
+	//printf("Account %s\n", file_name);
 	if (-1 == access(file_name, F_OK))
 		return true;
 	else
 		return false;
 }
 
+bool is_pin_correct(const char * entered_pin)
+{
+	return PIN_SIZE == strlen(entered_pin);
+}
+
+/*void set_nvm(const char * file_name)
+{
+	FILE *f = fopen(file_name, "r");
+
+	char * buf = NULL;
+	size_t size = 0;
+	char * curr_bal = NULL;
+
+	while (-1 != getline(&buf, &size, f)) {
+
+		printf("NOPE\n");
+		if (NULL != strstr(&buf[0], "PIN"))
+			memcpy(pin, &buf[5], sizeof(char) * 4);
+		else if (NULL != strstr(buf, "Balance"))
+			curr_bal = &buf[9];//strcpy(pin, &buf[9]);
+	}
+
+	if (curr_bal)
+		balance = strtod(curr_bal, NULL);
+
+	free(buf);
+	fclose(f);
+}*/
+
 atm_status_t set_up_new_account(const char * file_name)
 {
 	printf("Please input your new PIN: \n");
 	scanf("%s", pin);
 
-	//XXX:TODO: Make sure PIN is correct format i.e. 4 digits
+	if (!is_pin_correct(pin)) {
+
+		printf("Wrong PIN size. It has to be %d digits\n", PIN_SIZE);
+		return ATM_FAILURE;
+	}
 
 	FILE * f = fopen(file_name, "w+");
-	fprintf(f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", balance);
+	fprintf(f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance());
 	fclose(f);
 
 	return ATM_SUCCESS;
@@ -68,7 +103,6 @@ void get_nvm(const char * file_name)
 
 	while (-1 != getline(&buf, &size, f)) {
 
-		printf("NOPE\n");
 		if (NULL != strstr(&buf[0], "PIN"))
 			memcpy(pin, &buf[5], sizeof(char) * 4);
 		else if (NULL != strstr(buf, "Balance"))
@@ -157,7 +191,7 @@ double atm_get_balance(void)
 static void atm_state_machine(void)
 {
 	atm_state_t next_state = ATM_STATE_IDLE;
-	char account_num[ACCOUNT_NUM] = {'0', 'x', '8', 'A', '2', 'B', '\0'};
+	atm_status_t ret;
 
 	while (1) {
 
@@ -174,15 +208,17 @@ static void atm_state_machine(void)
 				
 				// Get acount number && Load the nvm for said account
 				//XXX: TODO: Use LIBUSBP
-				//char account_num[ACCOUNT_NUM] = {'0x8A', '0x2B'};
+
+				ret = ATM_SUCCESS;
 				
 				/* Does file exist i.e. is this a new account?? */
 				if (is_new_account(account_num))
-					set_up_new_account(account_num);
+					ret = set_up_new_account(account_num);
 				else
 					get_nvm(account_num);
 
-				next_state = ATM_STATE_PIN_CHECK;
+				if (ATM_SUCCESS == ret)
+					next_state = ATM_STATE_PIN_CHECK;
 
 				break;
 
@@ -209,11 +245,15 @@ static void atm_state_machine(void)
 						printf("Please input amount to withdraw from $%d.00 - $%d.00: ", MIN_WITHDRAW, MAX_WITHDRAW);
 						scanf("%d", &amount);
 
-						if (amount > 0)
+						if (amount > 0) {
+
 							(void)atm_withdraw((uint16_t)amount);
-							//update balance
-						else
+							
+							//update_flag |= FLAG_UPDATE_BALA;
+							update_flag = true;
+						} else {
 							printf("INVALID Amount\n");
+						}
 						
 						break;
 
@@ -222,11 +262,15 @@ static void atm_state_machine(void)
 						printf("Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSITS);
 						scanf("%d", &amount);
 
-						if (amount > 0)
+						if (amount > 0) {
+
 							(void)atm_deposit((uint16_t)amount);
-							//update_balance
-						else
+							
+							//update_flag |= FLAG_UPDATE_BALA;
+							update_flag = true;
+						} else {
 							printf("INVALID Amount\n");
+						}
 						
 						break;
 
@@ -242,6 +286,25 @@ static void atm_state_machine(void)
 
 						break;
 
+					/*case ATM_CHANGE_PIN:
+
+						printf("Please enter Your new PIN: ");
+
+						char pin_tries[4] = "0000";
+						scanf("%s", &pin_tries);
+
+						if (!is_pin_correct(pin_tries)) {
+
+							printf("Wrong PIN size. It has to be %d digits\n", PIN_SIZE);
+							return ATM_FAILURE;
+						} else {
+							
+							//update_flag |= FLAG_UPDATE_PINS;
+							printf("PIN Updated")
+						}
+
+						break;*/
+
 					default:
 
 						printf("Invalid selection\n");
@@ -254,6 +317,8 @@ static void atm_state_machine(void)
 			case ATM_STATE_RETURN_CARD:
 
 				//XXX: TODO: 7. Update nvm values of pin and balance before returning card
+				//if (update_flag)
+				//	ret = update_account_nvm(account_num);
 				
 				printf("Thank you and have a good day\n");
 				next_state = ATM_STATE_IDLE;
