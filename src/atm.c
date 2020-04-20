@@ -3,6 +3,9 @@
 2. Add Cmake
 3. Add unit tests
 4. Myabe use usb as bank cards??
+5. Change PIN ability
+6. Put LOCK into accuont that has been locked
+7. Update nvm values of pin and balance before returning card
 
 */
 
@@ -10,6 +13,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <stdlib.h>
 
 #include "inc/atm.h"
 
@@ -18,16 +22,67 @@ const char * welcome_msg = "Welcome to ATM System.\nPlease choose one of the fol
 				 			2.\tDeposit\n\
 							3.\tBalance Inquiry\n\
 							4.\t Return Card\n";
+							//5.\t Change PIN\n";
 
-//XXX: TODO: Write these values to a file and read it from them eerytime
-static double balance = 1000.00;
-static char * pin = "0456";
+//const char file_name[] = "nvm_file.txt";
 
+static double balance = 0.00;
+static char pin[] = "0000";
+
+//XXX: TODO: Use LIBUSBP
 bool card_inserted = true;
 
 /********************************************************************************/
 /*                               PRIVATE FUNCTIONS                              */
 /********************************************************************************/
+bool is_new_account(const char * file_name)
+{
+	printf("Account %s\n", file_name);
+	if (-1 == access(file_name, F_OK))
+		return true;
+	else
+		return false;
+}
+
+atm_status_t set_up_new_account(const char * file_name)
+{
+	printf("Please input your new PIN: \n");
+	scanf("%s", pin);
+
+	//XXX:TODO: Make sure PIN is correct format i.e. 4 digits
+
+	FILE * f = fopen(file_name, "w+");
+	fprintf(f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", balance);
+	fclose(f);
+
+	return ATM_SUCCESS;
+}
+
+void get_nvm(const char * file_name)
+{
+	FILE *f = fopen(file_name, "r");
+
+	char * buf = NULL;
+	size_t size = 0;
+	char * curr_bal = NULL;
+
+	while (-1 != getline(&buf, &size, f)) {
+
+		printf("NOPE\n");
+		if (NULL != strstr(&buf[0], "PIN"))
+			memcpy(pin, &buf[5], sizeof(char) * 4);
+		else if (NULL != strstr(buf, "Balance"))
+			curr_bal = &buf[9];//strcpy(pin, &buf[9]);
+	}
+
+	/* Update the balance */
+	if (curr_bal)
+		balance = strtod(curr_bal, NULL);
+
+	free(buf);
+	fclose(f);
+}
+
 atm_status_t pin_check(void)
 {
 	char pin_tries[4] = "0000";
@@ -47,7 +102,16 @@ atm_status_t pin_check(void)
 	return ATM_WRONG_PIN;
 }
 
-atm_status_t atm_withdraw(int amount)
+bool is_card_inserted(void)
+{
+	//XXX: TODO: How to check if card has been inserted?
+	//XXX: TODO: Use LIBUSBP
+	return card_inserted;
+}
+/********************************************************************************/
+/*                             OPERATION FUNCTIONS                              */
+/********************************************************************************/
+atm_status_t atm_withdraw(uint16_t amount)
 {					
 	if (amount < MIN_WITHDRAW || amount > MAX_WITHDRAW) {
 
@@ -68,7 +132,7 @@ atm_status_t atm_withdraw(int amount)
 
 atm_status_t atm_deposit(uint16_t amount)
 {
-	if (amount > 0 && amount <= MAX_DEPOSIT) {
+	if (amount <= MAX_DEPOSITS) {
 
 		printf("Please Put your cash in an envelope and deposit via slot\n");
 		sleep(5);
@@ -78,7 +142,7 @@ atm_status_t atm_deposit(uint16_t amount)
 	} else {
 
 		printf("Invalid amount selected.\
-			Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSIT, MAX_DEPOSIT);
+			Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS);
 		return ATM_INVALID_AMOUNT;
 	}
 }
@@ -87,18 +151,13 @@ double atm_get_balance(void)
 {
 	return balance;
 }
-
-bool is_card_inserted(void)
-{
-	//XXX: TODO: How to check if card has been inserted?
-	return card_inserted;
-}
-
+/********************************************************************************/
+/*                          ATM FINITE STATE MACHINE                            */
+/********************************************************************************/
 static void atm_state_machine(void)
 {
-	//int amount = 0;
-	//uint8_t choice;
 	atm_state_t next_state = ATM_STATE_IDLE;
+	char account_num[ACCOUNT_NUM] = {'0', 'x', '8', 'A', '2', 'B', '\0'};
 
 	while (1) {
 
@@ -113,8 +172,24 @@ static void atm_state_machine(void)
 
 			case ATM_STATE_CARD_INSERTED:
 				
+				// Get acount number && Load the nvm for said account
+				//XXX: TODO: Use LIBUSBP
+				//char account_num[ACCOUNT_NUM] = {'0x8A', '0x2B'};
+				
+				/* Does file exist i.e. is this a new account?? */
+				if (is_new_account(account_num))
+					set_up_new_account(account_num);
+				else
+					get_nvm(account_num);
+
+				next_state = ATM_STATE_PIN_CHECK;
+
+				break;
+
+			case ATM_STATE_PIN_CHECK:
+				
 				if (ATM_SUCCESS == pin_check())
-					next_state = ATM_STATE_PIN_CHECK;
+					next_state = ATM_STATE_OPERATIONS;
 				else
 					next_state = ATM_STATE_ACCOUNT_LOCK;
 
@@ -134,16 +209,24 @@ static void atm_state_machine(void)
 						printf("Please input amount to withdraw from $%d.00 - $%d.00: ", MIN_WITHDRAW, MAX_WITHDRAW);
 						scanf("%d", &amount);
 
-						(void)atm_withdraw(amount);
+						if (amount > 0)
+							(void)atm_withdraw((uint16_t)amount);
+							//update balance
+						else
+							printf("INVALID Amount\n");
 						
 						break;
 
 					case ATM_DEPOSIT:
 
-						printf("Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSIT);
+						printf("Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSITS);
 						scanf("%d", &amount);
 
-						(void)atm_deposit((uint16_t)amount);
+						if (amount > 0)
+							(void)atm_deposit((uint16_t)amount);
+							//update_balance
+						else
+							printf("INVALID Amount\n");
 						
 						break;
 
@@ -169,6 +252,8 @@ static void atm_state_machine(void)
 				break;
 
 			case ATM_STATE_RETURN_CARD:
+
+				//XXX: TODO: 7. Update nvm values of pin and balance before returning card
 				
 				printf("Thank you and have a good day\n");
 				next_state = ATM_STATE_IDLE;
@@ -177,7 +262,7 @@ static void atm_state_machine(void)
 			
 			case ATM_STATE_ACCOUNT_LOCK:
 				
-				printf("You have entered wrong PIN 3 times\nYou will be locked out of this account for the day\nPlease visit nearest branch for help\n");
+				printf("You have entered wrong PIN 3 times\nYou will be locked out of this account\nPlease visit nearest branch for help\n");
 				
 				//XXX: TODO: WHat to do here?
 				card_inserted = false;
@@ -190,9 +275,6 @@ static void atm_state_machine(void)
 				break;
 		}
 	}
-
-out:
-	return;
 }
 
 /********************************************************************************/
@@ -201,5 +283,4 @@ out:
 void atm_start(void)
 {
 	atm_state_machine();
-
 }

@@ -1,10 +1,16 @@
 #ifndef ATM_DEF_H
 #define ATM_DEF_H
 
-#define MAX_DEPOSIT		10000
-#define MIN_DEPOSIT		10
+#define MAX_DEPOSITS	10000
+#define MIN_DEPOSITS	10
+
+#define MIN_WITHDRAW	MIN_DEPOSITS
 #define MAX_WITHDRAW	1000
-#define MIN_WITHDRAW	MIN_DEPOSIT
+
+/* This is usually 16 numbers i.e. 8 bytes 
+ * but since we are using USB product ID 
+ * then it is only 7 bytes */
+#define ACCOUNT_NUM		7
 
 typedef enum {
 	ATM_SUCCESS = 0,
@@ -19,6 +25,7 @@ enum {
 	ATM_DEPOSIT,
 	ATM_INQUIRY,
 	ATM_RETURN_CARD
+	//ATM_CHANGE_PIN
 };
 
 typedef enum {
