@@ -16,20 +16,18 @@
 #include <stdlib.h>
 
 #include "inc/atm.h"
+#include "inc/atm_usb.h"
 
 const char * welcome_msg = "Welcome to ATM System.\nPlease choose one of the following operations:\n\
 							1.\tWithdraw\n\
 				 			2.\tDeposit\n\
 							3.\tBalance Inquiry\n\
-							4.\t Return Card\n\
-							5.\t Change PIN\n";
+							4.\tChange PIN\n\
+							5.\tReturn Card\n";
 
 static double balance = 0.00;
 static char pin[] = "0000";
-static char account_num[ACCOUNT_NUM] = {'0', 'x', '8', 'A', '2', 'B', '\0'};
-
-//XXX: TODO: Use LIBUSBP
-bool card_inserted = true;
+static char account_num[ACCOUNT_NUM];
 
 bool update_flag = false;
 /********************************************************************************/
@@ -75,7 +73,7 @@ atm_status_t pin_check(void)
 
 	while(tries--) {
 
-		printf("Please input your PIN: \n");
+		printf("Please input your PIN: ");
 		scanf("%s", pin_tries);
 
 		if (!strncmp(pin_tries, pin, sizeof(pin_tries) / sizeof(pin_tries[0])))
@@ -85,13 +83,6 @@ atm_status_t pin_check(void)
 	}
 
 	return ATM_WRONG_PIN;
-}
-
-bool is_card_inserted(void)
-{
-	//XXX: TODO: How to check if card has been inserted?
-	//XXX: TODO: Use LIBUSBP
-	return card_inserted;
 }
 /********************************************************************************/
 /*                               SET/GET FUNCTIONS                              */
@@ -174,31 +165,36 @@ atm_status_t atm_deposit(uint16_t amount)
 /********************************************************************************/
 /*                          ATM FINITE STATE MACHINE                            */
 /********************************************************************************/
-static void atm_state_machine(void)
+static void atm_state_machine( void )
 {
 	atm_state_t next_state = ATM_STATE_IDLE;
 	atm_status_t ret;
 
-	while (1) {
+	while ( true ) {
 
-		switch (next_state)
+		switch ( next_state )
 		{
 			case ATM_STATE_IDLE:
 
-				if (is_card_inserted())
+				if ( is_card_inserted() )
 					next_state = ATM_STATE_CARD_INSERTED;
 
 				break;
 
 			case ATM_STATE_CARD_INSERTED:
 				
-				// Get acount number && Load the nvm for said account
-				//XXX: TODO: Use LIBUSBP
+				/* Get acount number && Load the nvm for said account */
+				if ( get_account_info( account_num ) <= 0 ) {
+
+					printf("\nError retreiving account number\n");
+					next_state = ATM_STATE_RETURN_CARD;
+					break;
+				}
 
 				ret = ATM_SUCCESS;
 				
 				/* Does file exist i.e. is this a new account?? */
-				if (is_new_account(account_num)) {
+				if ( is_new_account( account_num ) ) {
 
 					ret = set_up_new_account(account_num);
 					if (ATM_SUCCESS == ret)
@@ -313,6 +309,8 @@ static void atm_state_machine(void)
 
 				update_flag = false;
 				
+				printf("Please Take your card\n");
+				sleep(5);
 				printf("Thank you and have a good day\n");
 				next_state = ATM_STATE_IDLE;
 
@@ -323,7 +321,7 @@ static void atm_state_machine(void)
 				printf("You have entered wrong PIN 3 times\nYou will be locked out of this account\nPlease visit nearest branch for help\n");
 				
 				//XXX: TODO: Put a "LOCK" string in the nvm file
-				card_inserted = false;
+				//card_inserted = false;
 				next_state = ATM_STATE_IDLE;
 
 				break;

@@ -10,14 +10,13 @@ TARGET = atm
 INCLUDES = .
 
 #Defines library paths in addition to /usr/lib
-#LFLAGS = -Llib
-LDFLAGS = -L/usr/local/lib -lgtest -l pthread
+LDFLAGS = -L/usr/local/lib
 
 #Defines any libraries to link into executable
-#LIB = -lmylib -m
+LIB = -lgtest -lpthread -lusb-1.0
 
 #Define source files
-SRC = src/main.c src/atm.c
+SRC = src/main.c src/atm.c src/atm_usb.c
 OBJS = $(SRC:.c=.o)
 TEST = test/test.cc
 
@@ -31,16 +30,16 @@ CFLAGS = -g -Wall -I$(INCLUDES)
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LFLAGS) $(LIBS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS) $(LIB)
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
 check:
-	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS)
+	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS) $(LIB)
 
 clean:
 	$(RM) -rf $(TARGET)\
 		*.dSYM \
 		$(OBJS) \
-		.DS_Store\
+		.DS_Store inc/.DS_Store \
