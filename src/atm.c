@@ -35,7 +35,6 @@ bool update_flag = false;
 /********************************************************************************/
 bool is_new_account(const char * file_name)
 {
-	//printf("Account %s\n", file_name);
 	if (-1 == access(file_name, F_OK))
 		return true;
 	else
@@ -131,8 +130,7 @@ atm_status_t atm_withdraw(uint16_t amount)
 {					
 	if (amount < MIN_WITHDRAW || amount > MAX_WITHDRAW) {
 
-		printf("Inavlid amount selected.\
-			Please select amount between $%d.00 - $%d.00\n", MIN_WITHDRAW, MAX_WITHDRAW);
+		printf("Inavlid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_WITHDRAW, MAX_WITHDRAW);
 		return ATM_INVALID_AMOUNT;
 	} else if (balance >= (double)amount) {
 
@@ -157,8 +155,7 @@ atm_status_t atm_deposit(uint16_t amount)
 		return ATM_SUCCESS; 
 	} else {
 
-		printf("Invalid amount selected.\
-			Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS);
+		printf("Invalid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS);
 		return ATM_INVALID_AMOUNT;
 	}
 }
@@ -228,17 +225,27 @@ static void atm_state_machine( void )
 			case ATM_STATE_OPERATIONS:
 				
 				printf("%s\nPlease enter your selection: ", welcome_msg);
-				uint8_t choice = 0;
-				scanf("%2" SCNu8, &choice);
-				printf("choice %d\n", choice);
+				uint8_t choice = 10;
 				int amount = 0;
+
+				/* In case of error clear what is left in buffer, the * means only match and discard */
+				if ( !scanf("%2" SCNu8, &choice) )
+					scanf("%*[^\n]");
+
+				//int c; while((c = getchar()) != '\n' && c != EOF);
+				printf("choice %d\n", choice);
+				
 				
 				switch (--choice) {
 
 					case ATM_WITHDRAW:
 
 						printf("Please input amount to withdraw from $%d.00 - $%d.00: ", MIN_WITHDRAW, MAX_WITHDRAW);
-						scanf("%d", &amount);
+						if ( !scanf("%d", &amount) ) {
+
+							scanf("%*[^\n]");
+							amount = 0;
+						}
 
 						if (amount > 0) {
 
@@ -255,7 +262,12 @@ static void atm_state_machine( void )
 					case ATM_DEPOSIT:
 
 						printf("Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSITS);
-						scanf("%d", &amount);
+						//scanf("%d", &amount);
+						char buf[ 7 ];
+						amount = 0;
+
+						if ( fgets( buf, sizeof( buf ), stdin ))
+							sscanf( buf, "%d", &amount );
 
 						if (amount > 0) {
 
@@ -353,10 +365,6 @@ static void atm_state_machine( void )
 /********************************************************************************/
 void atm_start(void)
 {
-	//atm_state_machine();
-	while ( 1 ) {
-		printf("\nPlease enter your selection: ");
-		int choice = 0;
-		scanf("%d", &choice);
-	}
+	atm_state_machine();
 }
+

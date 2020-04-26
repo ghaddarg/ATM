@@ -42,4 +42,4 @@ clean:
 	$(RM) -rf $(TARGET)\
 		*.dSYM \
 		$(OBJS) \
-		.DS_Store inc/.DS_Store \
+		.DS_Store
