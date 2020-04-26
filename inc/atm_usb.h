@@ -25,5 +25,6 @@ Dev (bus 20, device 0): 05AC - 8007
 /********************************************************************************/
 bool is_card_inserted( void );
 size_t get_account_info( char * buf );
+bool is_usb_removed( void );
 
 #endif /* ATM_USB_H */

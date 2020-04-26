@@ -10,6 +10,7 @@
 
 static libusb_device ** devices;
 static unsigned char account_info_buf[ MAX_BUFF_LEN ];
+static uint8_t usb_idx;
 /********************************************************************************/
 /*                               PRIVATE FUNCTIONS                              */
 /********************************************************************************/
@@ -39,6 +40,9 @@ out:
 
 static void atm_libusb_fini( void )
 {
+	usb_idx = 0;
+	memset( account_info_buf, MAX_BUFF_LEN, 0 );
+
 	libusb_free_device_list( devices, 1 );
 	libusb_exit( NULL );
 }
@@ -90,18 +94,20 @@ bool is_card_inserted( void )
 {
 	bool card_inserted = false;
 
-	atm_libusb_init();
+	if ( atm_libusb_init() < 0 )
+		goto out;
 
-	for ( uint8_t i = 0; devices[ i ]; i++ ) {
+	for ( usb_idx = 0; devices[ usb_idx ]; usb_idx++ ) {
 
 		/* Find first valid USB device and break */
-		card_inserted = is_valid_card( devices[ i ] );
+		card_inserted = is_valid_card( devices[ usb_idx ] );
 		if ( card_inserted )
 			break;
 	}
 
-	atm_libusb_fini();
-	
+	//atm_libusb_fini();
+
+out:	
 	return card_inserted;
 }
 
@@ -115,4 +121,23 @@ size_t get_account_info( char * buf )
 	memcpy( buf, account_info_buf, size );
 
 	return size;
+}
+
+bool is_usb_removed( void )
+{
+	int r;
+	bool ret = false;
+	libusb_device_handle * handle = NULL;
+
+	r = libusb_open( devices[ usb_idx ], &handle );
+	if ( LIBUSB_SUCCESS != r ) {
+		printf("failed to open usb device with error %d\n", r);
+		ret = true;
+		atm_libusb_fini();
+	}
+
+	if ( handle )
+		libusb_close( handle );
+
+	return ret;
 }

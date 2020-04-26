@@ -18,7 +18,7 @@
 #include "inc/atm.h"
 #include "inc/atm_usb.h"
 
-const char * welcome_msg = "Welcome to ATM System.\nPlease choose one of the following operations:\n\
+const char * welcome_msg = "Please choose one of the following operations:\n\
 							1.\tWithdraw\n\
 				 			2.\tDeposit\n\
 							3.\tBalance Inquiry\n\
@@ -169,6 +169,7 @@ static void atm_state_machine( void )
 {
 	atm_state_t next_state = ATM_STATE_IDLE;
 	atm_status_t ret;
+	uint8_t welcome_flag = 0;
 
 	while ( true ) {
 
@@ -176,12 +177,20 @@ static void atm_state_machine( void )
 		{
 			case ATM_STATE_IDLE:
 
+				if ( !welcome_flag ) {
+
+					printf("Welcome to ATM System.\nPlease insert your card\n");
+					welcome_flag = 1;
+				}
+
 				if ( is_card_inserted() )
 					next_state = ATM_STATE_CARD_INSERTED;
 
 				break;
 
 			case ATM_STATE_CARD_INSERTED:
+
+				welcome_flag = 0;
 				
 				/* Get acount number && Load the nvm for said account */
 				if ( get_account_info( account_num ) <= 0 ) {
@@ -221,6 +230,7 @@ static void atm_state_machine( void )
 				printf("%s\nPlease enter your selection: ", welcome_msg);
 				uint8_t choice = 0;
 				scanf("%2" SCNu8, &choice);
+				printf("choice %d\n", choice);
 				int amount = 0;
 				
 				switch (--choice) {
@@ -287,7 +297,8 @@ static void atm_state_machine( void )
 						} else {
 							
 							//update_flag |= FLAG_UPDATE_PINS;
-							printf("PIN Updated");
+							printf("PIN Updated\n");
+							memcpy( pin, pin_tries, PIN_SIZE );
 							update_flag = true;
 						}
 
@@ -310,7 +321,10 @@ static void atm_state_machine( void )
 				update_flag = false;
 				
 				printf("Please Take your card\n");
-				sleep(5);
+
+				/* Block until usb is removed */
+				while ( !is_usb_removed() );
+
 				printf("Thank you and have a good day\n");
 				next_state = ATM_STATE_IDLE;
 
@@ -318,7 +332,9 @@ static void atm_state_machine( void )
 			
 			case ATM_STATE_ACCOUNT_LOCK:
 				
-				printf("You have entered wrong PIN 3 times\nYou will be locked out of this account\nPlease visit nearest branch for help\n");
+				printf("You have entered wrong PIN 3 times\n\
+					You will be locked out of this account\n\
+					Please visit nearest branch for help\n");
 				
 				//XXX: TODO: Put a "LOCK" string in the nvm file
 				//card_inserted = false;
@@ -332,11 +348,15 @@ static void atm_state_machine( void )
 		}
 	}
 }
-
 /********************************************************************************/
 /*                               PUBLIC FUNCTIONS                               */
 /********************************************************************************/
 void atm_start(void)
 {
-	atm_state_machine();
+	//atm_state_machine();
+	while ( 1 ) {
+		printf("\nPlease enter your selection: ");
+		int choice = 0;
+		scanf("%d", &choice);
+	}
 }
