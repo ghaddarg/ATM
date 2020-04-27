@@ -21,7 +21,8 @@ typedef enum {
 	ATM_WRONG_PIN,
 	ATM_INVALID_AMOUNT,
 	ATM_INSUFF_FUNDS,
-	ATM_MEM_ERROR
+	ATM_MEM_ERROR,
+	ATM_ACC_LOCKED
 }atm_status_t;
 
 enum {
