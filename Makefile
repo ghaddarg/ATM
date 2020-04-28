@@ -63,7 +63,7 @@ $(TARGET): lib$(TARGET).a
 
 test: clean build_test
 
-clean:
+clean: clean_test
 	$(RM) -rf $(OUTDIR) \
 		*.dSYM \
 		$(OBJS) \

@@ -1,3 +1,6 @@
+CC 		= gcc
+CXX 	= g++
+AR		= ar
 ##################################################################################
 SRCDIR	= ../src
 LIBDIR	= ../lib
@@ -26,10 +29,9 @@ CFLAGS := \
 CXXFLAGS := \
 	-fexceptions -Wall -Wextra -Werror -O0 -g -std=c++11 \
 	-I$(INCDIR) \
-	-I$(LIBDIR) \
 	-I/usr/local/include/
 
-LDFLAGS := -ldl -lgtest -lpthread -lusb-1.0
+LDFLAGS := -lgtest -lpthread -lusb-1.0
 ##################################################################################
 #                              MAIN MAKEFILE
 ##################################################################################
