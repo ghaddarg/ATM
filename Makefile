@@ -58,7 +58,7 @@ $(TARGET): lib$(TARGET).a
 #.c.o:
 #	$(CC) $(CFLAGS) -c $< -o $@
 
-#check:
+check: run_test
 #	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS) $(LIB)
 
 test: clean build_test
