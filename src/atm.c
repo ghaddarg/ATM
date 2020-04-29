@@ -16,20 +16,18 @@
 #include <stdlib.h>
 
 #include "inc/atm.h"
+#include "inc/atm_usb.h"
 
-const char * welcome_msg = "Welcome to ATM System.\nPlease choose one of the following operations:\n\
+const char * welcome_msg = "Please choose one of the following operations:\n\
 							1.\tWithdraw\n\
 				 			2.\tDeposit\n\
 							3.\tBalance Inquiry\n\
-							4.\t Return Card\n\
-							5.\t Change PIN\n";
+							4.\tChange PIN\n\
+							5.\tReturn Card\n";
 
 static double balance = 0.00;
 static char pin[] = "0000";
-static char account_num[ACCOUNT_NUM] = {'0', 'x', '8', 'A', '2', 'B', '\0'};
-
-//XXX: TODO: Use LIBUSBP
-bool card_inserted = true;
+static char account_num[ACCOUNT_NUM];
 
 bool update_flag = false;
 /********************************************************************************/
@@ -37,7 +35,6 @@ bool update_flag = false;
 /********************************************************************************/
 bool is_new_account(const char * file_name)
 {
-	//printf("Account %s\n", file_name);
 	if (-1 == access(file_name, F_OK))
 		return true;
 	else
@@ -75,7 +72,7 @@ atm_status_t pin_check(void)
 
 	while(tries--) {
 
-		printf("Please input your PIN: \n");
+		printf("Please input your PIN: ");
 		scanf("%s", pin_tries);
 
 		if (!strncmp(pin_tries, pin, sizeof(pin_tries) / sizeof(pin_tries[0])))
@@ -85,13 +82,6 @@ atm_status_t pin_check(void)
 	}
 
 	return ATM_WRONG_PIN;
-}
-
-bool is_card_inserted(void)
-{
-	//XXX: TODO: How to check if card has been inserted?
-	//XXX: TODO: Use LIBUSBP
-	return card_inserted;
 }
 /********************************************************************************/
 /*                               SET/GET FUNCTIONS                              */
@@ -140,8 +130,7 @@ atm_status_t atm_withdraw(uint16_t amount)
 {					
 	if (amount < MIN_WITHDRAW || amount > MAX_WITHDRAW) {
 
-		printf("Inavlid amount selected.\
-			Please select amount between $%d.00 - $%d.00\n", MIN_WITHDRAW, MAX_WITHDRAW);
+		printf("Inavlid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_WITHDRAW, MAX_WITHDRAW);
 		return ATM_INVALID_AMOUNT;
 	} else if (balance >= (double)amount) {
 
@@ -166,39 +155,52 @@ atm_status_t atm_deposit(uint16_t amount)
 		return ATM_SUCCESS; 
 	} else {
 
-		printf("Invalid amount selected.\
-			Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS);
+		printf("Invalid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS);
 		return ATM_INVALID_AMOUNT;
 	}
 }
 /********************************************************************************/
 /*                          ATM FINITE STATE MACHINE                            */
 /********************************************************************************/
-static void atm_state_machine(void)
+static void atm_state_machine( void )
 {
 	atm_state_t next_state = ATM_STATE_IDLE;
 	atm_status_t ret;
+	uint8_t welcome_flag = 0;
 
-	while (1) {
+	while ( true ) {
 
-		switch (next_state)
+		switch ( next_state )
 		{
 			case ATM_STATE_IDLE:
 
-				if (is_card_inserted())
+				if ( !welcome_flag ) {
+
+					printf("Welcome to ATM System.\nPlease insert your card\n");
+					welcome_flag = 1;
+				}
+
+				if ( is_card_inserted() )
 					next_state = ATM_STATE_CARD_INSERTED;
 
 				break;
 
 			case ATM_STATE_CARD_INSERTED:
+
+				welcome_flag = 0;
 				
-				// Get acount number && Load the nvm for said account
-				//XXX: TODO: Use LIBUSBP
+				/* Get acount number && Load the nvm for said account */
+				if ( get_account_info( account_num ) <= 0 ) {
+
+					printf("\nError retreiving account number\n");
+					next_state = ATM_STATE_RETURN_CARD;
+					break;
+				}
 
 				ret = ATM_SUCCESS;
 				
 				/* Does file exist i.e. is this a new account?? */
-				if (is_new_account(account_num)) {
+				if ( is_new_account( account_num ) ) {
 
 					ret = set_up_new_account(account_num);
 					if (ATM_SUCCESS == ret)
@@ -223,16 +225,27 @@ static void atm_state_machine(void)
 			case ATM_STATE_OPERATIONS:
 				
 				printf("%s\nPlease enter your selection: ", welcome_msg);
-				uint8_t choice = 0;
-				scanf("%2" SCNu8, &choice);
+				uint8_t choice = 10;
 				int amount = 0;
+
+				/* In case of error clear what is left in buffer, the * means only match and discard */
+				if ( !scanf("%2" SCNu8, &choice) )
+					scanf("%*[^\n]");
+
+				//int c; while((c = getchar()) != '\n' && c != EOF);
+				printf("choice %d\n", choice);
+				
 				
 				switch (--choice) {
 
 					case ATM_WITHDRAW:
 
 						printf("Please input amount to withdraw from $%d.00 - $%d.00: ", MIN_WITHDRAW, MAX_WITHDRAW);
-						scanf("%d", &amount);
+						if ( !scanf("%d", &amount) ) {
+
+							scanf("%*[^\n]");
+							amount = 0;
+						}
 
 						if (amount > 0) {
 
@@ -249,7 +262,12 @@ static void atm_state_machine(void)
 					case ATM_DEPOSIT:
 
 						printf("Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSITS);
-						scanf("%d", &amount);
+						//scanf("%d", &amount);
+						char buf[ 7 ];
+						amount = 0;
+
+						if ( fgets( buf, sizeof( buf ), stdin ))
+							sscanf( buf, "%d", &amount );
 
 						if (amount > 0) {
 
@@ -291,7 +309,8 @@ static void atm_state_machine(void)
 						} else {
 							
 							//update_flag |= FLAG_UPDATE_PINS;
-							printf("PIN Updated");
+							printf("PIN Updated\n");
+							memcpy( pin, pin_tries, PIN_SIZE );
 							update_flag = true;
 						}
 
@@ -313,6 +332,11 @@ static void atm_state_machine(void)
 
 				update_flag = false;
 				
+				printf("Please Take your card\n");
+
+				/* Block until usb is removed */
+				while ( !is_usb_removed() );
+
 				printf("Thank you and have a good day\n");
 				next_state = ATM_STATE_IDLE;
 
@@ -320,10 +344,12 @@ static void atm_state_machine(void)
 			
 			case ATM_STATE_ACCOUNT_LOCK:
 				
-				printf("You have entered wrong PIN 3 times\nYou will be locked out of this account\nPlease visit nearest branch for help\n");
+				printf("You have entered wrong PIN 3 times\n\
+					You will be locked out of this account\n\
+					Please visit nearest branch for help\n");
 				
 				//XXX: TODO: Put a "LOCK" string in the nvm file
-				card_inserted = false;
+				//card_inserted = false;
 				next_state = ATM_STATE_IDLE;
 
 				break;
@@ -334,7 +360,6 @@ static void atm_state_machine(void)
 		}
 	}
 }
-
 /********************************************************************************/
 /*                               PUBLIC FUNCTIONS                               */
 /********************************************************************************/
@@ -342,3 +367,4 @@ void atm_start(void)
 {
 	atm_state_machine();
 }
+

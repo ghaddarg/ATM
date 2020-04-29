@@ -10,10 +10,8 @@
 //#define FLAG_UPDATE_PINS	0b00001111
 //#define FLAG_UPDATE_BALA	0b11110000
 
-/* This is usually 16 numbers i.e. 8 bytes 
- * but since we are using USB product ID 
- * then it is only 7 bytes */
-#define ACCOUNT_NUM		7
+/* This is USB Serial Number */
+#define ACCOUNT_NUM		20
 
 #define PIN_SIZE		4
 
@@ -23,14 +21,15 @@ typedef enum {
 	ATM_WRONG_PIN,
 	ATM_INVALID_AMOUNT,
 	ATM_INSUFF_FUNDS,
+	ATM_MEM_ERROR
 }atm_status_t;
 
 enum {
 	ATM_WITHDRAW = 0,
 	ATM_DEPOSIT,
 	ATM_INQUIRY,
-	ATM_RETURN_CARD,
-	ATM_CHANGE_PIN
+	ATM_CHANGE_PIN,
+	ATM_RETURN_CARD
 };
 
 typedef enum {

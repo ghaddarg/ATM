@@ -1,6 +1,9 @@
 #ifndef ATM_H
 #define ATM_H
 
+//http://libusb.sourceforge.net/api-1.0/structlibusb__device__descriptor.html
+//https://github.com/libusb/libusb/wiki
+
 #include <stdint.h>
 #include <stdbool.h>
 
