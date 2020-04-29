@@ -1,4 +1,5 @@
 # ATM
+==========
 This is a simple finite state machine ATM system that was designed. 
 The design of the system is as close as possible to an actual ATM bank machine.
 Instead of cards we are using usb to signify when a card has been entered.
@@ -15,7 +16,6 @@ This SW was designed on Mac OSX 10.13
 This is version 1
 
 ## TODO:
- 
 1. Add file save/load for NVM <DONE>
 2. Add Cmake
 3. Add unit tests <DONE>
