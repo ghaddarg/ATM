@@ -2,11 +2,10 @@
 1. Add file save/load for NVM <DONE>
 2. Add Cmake
 3. Add unit tests
-4. Maybe use usb as bank cards??
+4. Maybe use usb as bank cards <DONE>
 5. Change PIN ability <DONE>
-6. Put LOCK into accuont that has been locked
+6. Put LOCK into accuont that has been locked <DONE>
 7. Update nvm values of pin and balance before returning card <DONE>
-
 */
 
 #include <stdio.h>
@@ -33,129 +32,146 @@ bool update_flag = false;
 /********************************************************************************/
 /*                               PRIVATE FUNCTIONS                              */
 /********************************************************************************/
-bool is_new_account(const char * file_name)
+bool is_new_account( const char * file_name )
 {
-	if (-1 == access(file_name, F_OK))
+	if ( -1 == access( file_name, F_OK ) )
 		return true;
 	else
 		return false;
 }
 
-bool is_pin_correct(const char * entered_pin)
+bool is_pin_correct( const char * entered_pin )
 {
 	return PIN_SIZE == strlen(entered_pin);
 }
 
-atm_status_t set_up_new_account(const char * file_name)
+atm_status_t set_up_new_account( const char * file_name )
 {
-	printf("Please input your new PIN: \n");
-	scanf("%s", pin);
+	printf( "Please input your new PIN: \n" );
+	scanf( "%s", pin );
 
-	if (!is_pin_correct(pin)) {
+	if ( !is_pin_correct( pin )) {
 
-		printf("Wrong PIN size. It has to be %d digits\n", PIN_SIZE);
+		printf( "Wrong PIN size. It has to be %d digits\n", PIN_SIZE );
 		return ATM_FAILURE;
 	}
 
-	FILE * f = fopen(file_name, "w+");
-	fprintf(f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance());
-	fclose(f);
+	FILE * f = fopen( file_name, "w+" );
+	fprintf( f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance() );
+	fclose( f );
 
-	printf("Your new account has been set up.\n");
+	printf( "Your new account has been set up.\n" );
 	return ATM_SUCCESS;
 }
 
-atm_status_t pin_check(void)
+atm_status_t pin_check( void )
 {
-	char pin_tries[4] = "0000";
+	char pin_tries[ PIN_SIZE ] = "0000";
 	uint8_t tries = 3;
 
-	while(tries--) {
+	while( tries-- ) {
 
-		printf("Please input your PIN: ");
-		scanf("%s", pin_tries);
+		printf( "Please input your PIN: " );
+		scanf( "%s", pin_tries );
 
-		if (!strncmp(pin_tries, pin, sizeof(pin_tries) / sizeof(pin_tries[0])))
+		if ( !strncmp( pin_tries, pin, sizeof( pin_tries ) / sizeof( pin_tries[ 0 ] )))
 			return ATM_SUCCESS;
 
-		printf("INVALID PIN\n");
+		printf( "INVALID PIN\n" );
 	}
 
 	return ATM_WRONG_PIN;
 }
+
+void lock_account( const char * file_name )
+{
+	FILE * f = fopen( file_name, "w+" );
+	fprintf( f, "LOCKED\n%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance() );
+	fclose( f );
+}
 /********************************************************************************/
 /*                               SET/GET FUNCTIONS                              */
 /********************************************************************************/
-void set_nvm(const char * file_name)
+void set_nvm( const char * file_name )
 {
-	FILE * f = fopen(file_name, "w+");
-	fprintf(f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance());
-	fclose(f);
+	FILE * f = fopen( file_name, "w+" );
+	fprintf( f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance() );
+	fclose( f );
 }
 
-void get_nvm(const char * file_name)
+atm_status_t get_nvm( const char * file_name )
 {
-	FILE *f = fopen(file_name, "r");
+	atm_status_t ret = ATM_FAILURE;
+	FILE *f = fopen( file_name, "r" );
 
 	char * buf = NULL;
 	size_t size = 0;
 	char * curr_bal = NULL;
 
-	while (-1 != getline(&buf, &size, f)) {
+	while ( -1 != getline( &buf, &size, f ) ) {
 
-		//XXX: TODO: Make sure Account is not LOCKED??
+		/* If Account Locked?? */
+		if ( NULL != strstr(&buf[0], "LOCKED" )) {
 
-		if (NULL != strstr(&buf[0], "PIN"))
-			memcpy(pin, &buf[5], sizeof(char) * 4);
-		else if (NULL != strstr(buf, "Balance"))
-			curr_bal = &buf[9];//strcpy(pin, &buf[9]);
+			ret = ATM_ACC_LOCKED;
+			goto out;
+		}
+
+		if ( NULL != strstr(&buf[0], "PIN" ))
+			memcpy( pin, &buf[ 5 ], sizeof( char ) * PIN_SIZE );
+		else if ( NULL != strstr( buf, "Balance" ))
+			curr_bal = &buf[ 9 ];//strcpy(pin, &buf[9]);
 	}
 
 	/* Update the balance */
-	if (curr_bal)
-		balance = strtod(curr_bal, NULL);
+	if ( curr_bal )
+		balance = strtod( curr_bal, NULL );
 
-	free(buf);
-	fclose(f);
+	ret = ATM_SUCCESS;
+
+out:
+	free( buf );
+	fclose( f );
+	return ret;
 }
 
-double atm_get_balance(void)
+double atm_get_balance( void )
 {
 	return balance;
 }
 /********************************************************************************/
 /*                             OPERATION FUNCTIONS                              */
 /********************************************************************************/
-atm_status_t atm_withdraw(uint16_t amount)
+atm_status_t atm_withdraw( uint16_t amount )
 {					
-	if (amount < MIN_WITHDRAW || amount > MAX_WITHDRAW) {
+	if ( amount < MIN_WITHDRAW || amount > MAX_WITHDRAW ) {
 
-		printf("Inavlid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_WITHDRAW, MAX_WITHDRAW);
+		printf( "Inavlid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_WITHDRAW, MAX_WITHDRAW );
 		return ATM_INVALID_AMOUNT;
-	} else if (balance >= (double)amount) {
+	} else if ( balance >= ( double )amount ) {
 
-		balance -= (double)amount;
-		printf("Your new balance is: %lf\n", balance);
+		balance -= ( double )amount;
+		printf( "Your new balance is: %lf\n", balance );
 		return ATM_SUCCESS;
 	} else {
 
-		printf("You do not have enough funds\n");
+		printf( "You do not have enough funds\n" );
 		return ATM_INSUFF_FUNDS;
 	}
 }
 
-atm_status_t atm_deposit(uint16_t amount)
+atm_status_t atm_deposit( uint16_t amount )
 {
-	if (amount <= MAX_DEPOSITS) {
+	if ( amount <= MAX_DEPOSITS ) {
 
-		printf("Please Put your cash in an envelope and deposit via slot\n");
-		sleep(5);
-		balance += (double)amount;
-		printf("Your new balance is %lf\n", balance);
+		printf( "Please Put your cash in an envelope and deposit via slot\n" );
+		sleep( 5 );
+		balance += ( double )amount;
+		printf( "Your new balance is %lf\n", balance );
 		return ATM_SUCCESS; 
 	} else {
 
-		printf("Invalid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS);
+		printf( "Invalid amount selected. Please select amount between $%d.00 - $%d.00\n", MIN_DEPOSITS, MAX_DEPOSITS );
 		return ATM_INVALID_AMOUNT;
 	}
 }
@@ -176,7 +192,7 @@ static void atm_state_machine( void )
 
 				if ( !welcome_flag ) {
 
-					printf("Welcome to ATM System.\nPlease insert your card\n");
+					printf( "Welcome to ATM System.\nPlease insert your card\n" );
 					welcome_flag = 1;
 				}
 
@@ -189,10 +205,10 @@ static void atm_state_machine( void )
 
 				welcome_flag = 0;
 				
-				/* Get acount number && Load the nvm for said account */
+				/* Get account number && Load the nvm for said account */
 				if ( get_account_info( account_num ) <= 0 ) {
 
-					printf("\nError retreiving account number\n");
+					printf( "\nError retreiving account number\n" );
 					next_state = ATM_STATE_RETURN_CARD;
 					break;
 				}
@@ -202,13 +218,21 @@ static void atm_state_machine( void )
 				/* Does file exist i.e. is this a new account?? */
 				if ( is_new_account( account_num ) ) {
 
-					ret = set_up_new_account(account_num);
-					if (ATM_SUCCESS == ret)
+					ret = set_up_new_account( account_num );
+					if ( ATM_SUCCESS == ret )
 						next_state = ATM_STATE_OPERATIONS;
 
 				} else {
-					get_nvm(account_num);
-					next_state = ATM_STATE_PIN_CHECK;
+
+					ret = get_nvm( account_num );
+					if ( ATM_SUCCESS == ret ) {	
+
+						next_state = ATM_STATE_PIN_CHECK;
+					} else if ( ATM_ACC_LOCKED == ret ) {
+
+						printf( "Your Account is locked. Please visit nearest branch\n" );
+						next_state = ATM_STATE_RETURN_CARD;
+					}
 				}
 
 				break;
@@ -224,7 +248,7 @@ static void atm_state_machine( void )
 
 			case ATM_STATE_OPERATIONS:
 				
-				printf("%s\nPlease enter your selection: ", welcome_msg);
+				printf( "%s\nPlease enter your selection: ", welcome_msg );
 				uint8_t choice = 10;
 				int amount = 0;
 
@@ -233,57 +257,62 @@ static void atm_state_machine( void )
 					scanf("%*[^\n]");
 
 				//int c; while((c = getchar()) != '\n' && c != EOF);
-				printf("choice %d\n", choice);
+				printf( "choice %d\n", choice );
 				
 				
-				switch (--choice) {
+				switch ( --choice ) {
 
 					case ATM_WITHDRAW:
 
-						printf("Please input amount to withdraw from $%d.00 - $%d.00: ", MIN_WITHDRAW, MAX_WITHDRAW);
-						if ( !scanf("%d", &amount) ) {
+						printf( "Please input amount to withdraw from $%d.00 - $%d.00: ", MIN_WITHDRAW, MAX_WITHDRAW );
+						if ( !scanf( "%d", &amount ) ) {
 
 							scanf("%*[^\n]");
 							amount = 0;
 						}
 
-						if (amount > 0) {
+						if ( amount > 0 ) {
 
-							(void)atm_withdraw((uint16_t)amount);
+							( void )atm_withdraw( ( uint16_t )amount );
 							
 							//update_flag |= FLAG_UPDATE_BALA;
 							update_flag = true;
 						} else {
-							printf("INVALID Amount\n");
+							printf( "INVALID Amount\n" );
 						}
 						
 						break;
 
 					case ATM_DEPOSIT:
 
-						printf("Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSITS);
+						printf( "Please enter amount to be deposited. Max of $%d.00: ", MAX_DEPOSITS );
 						//scanf("%d", &amount);
 						char buf[ 7 ];
-						amount = 0;
+						memset( buf, sizeof( buf ), 0 );
 
-						if ( fgets( buf, sizeof( buf ), stdin ))
-							sscanf( buf, "%d", &amount );
+						while ( fgets( buf, sizeof( buf ), stdin )) {
 
-						if (amount > 0) {
+							if ( -1 != sscanf( buf, "%d", &amount ))
+								break;
+						}
 
-							(void)atm_deposit((uint16_t)amount);
+						printf( "amount %d\n", amount );
+
+						if ( amount > 0 ) {
+
+							( void )atm_deposit( ( uint16_t )amount );
 							
 							//update_flag |= FLAG_UPDATE_BALA;
 							update_flag = true;
 						} else {
-							printf("INVALID Amount\n");
+							printf( "INVALID Amount\n" );
 						}
 						
 						break;
 
 					case ATM_INQUIRY:
 
-						printf("Your current balance is %lf\n", atm_get_balance());
+						printf( "Your current balance is %lf\n", atm_get_balance() );
 
 						break;
 
@@ -295,21 +324,21 @@ static void atm_state_machine( void )
 
 					case ATM_CHANGE_PIN:
 
-						printf("Please enter Your new PIN: ");
+						printf( "Please enter Your new PIN: " );
 
 						char pin_tries[] = "0000";
-						scanf("%s", pin_tries);
+						scanf( "%s", pin_tries );
 
 						//XXX: TODO: Is PIN same as old one???
 
 						if (!is_pin_correct(pin_tries)) {
 
-							printf("Wrong PIN size. It has to be %d digits\n", PIN_SIZE);
+							printf( "Wrong PIN size. It has to be %d digits\n", PIN_SIZE );
 
 						} else {
 							
 							//update_flag |= FLAG_UPDATE_PINS;
-							printf("PIN Updated\n");
+							printf( "PIN Updated\n" );
 							memcpy( pin, pin_tries, PIN_SIZE );
 							update_flag = true;
 						}
@@ -318,7 +347,7 @@ static void atm_state_machine( void )
 
 					default:
 
-						printf("Invalid selection\n");
+						printf( "Invalid selection\n" );
 
 						break;
 				}
@@ -327,30 +356,28 @@ static void atm_state_machine( void )
 
 			case ATM_STATE_RETURN_CARD:
 
-				if (update_flag)
-					set_nvm(account_num);
+				if ( update_flag )
+					set_nvm( account_num );
 
 				update_flag = false;
 				
-				printf("Please Take your card\n");
+				printf( "Please Take your card\n" );
 
 				/* Block until usb is removed */
 				while ( !is_usb_removed() );
 
-				printf("Thank you and have a good day\n");
+				printf( "Thank you and have a good day\n" );
 				next_state = ATM_STATE_IDLE;
 
 				break;
 			
 			case ATM_STATE_ACCOUNT_LOCK:
 				
-				printf("You have entered wrong PIN 3 times\n\
-					You will be locked out of this account\n\
-					Please visit nearest branch for help\n");
+				printf( "You have entered wrong PIN 3 times\n");
+				printf("You will be locked out of this account\nPlease visit nearest branch for help\n" );
 				
-				//XXX: TODO: Put a "LOCK" string in the nvm file
-				//card_inserted = false;
-				next_state = ATM_STATE_IDLE;
+				lock_account( account_num );
+				next_state = ATM_STATE_RETURN_CARD;
 
 				break;
 
@@ -363,8 +390,7 @@ static void atm_state_machine( void )
 /********************************************************************************/
 /*                               PUBLIC FUNCTIONS                               */
 /********************************************************************************/
-void atm_start(void)
+void atm_start( void )
 {
 	atm_state_machine();
 }
-

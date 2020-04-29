@@ -65,7 +65,7 @@ static bool is_valid_card( libusb_device * dev )
 
 	r = libusb_open( dev, &handle );
 	if ( LIBUSB_SUCCESS != r ) {
-		printf("failed to open usb device with error %d\n", r);
+		printf("X failed to open usb device with error %d\n", r);
 		goto out;
 	}
 
