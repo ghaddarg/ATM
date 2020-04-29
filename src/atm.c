@@ -1,7 +1,7 @@
 /* XXX: TODO: 
 1. Add file save/load for NVM <DONE>
 2. Add Cmake
-3. Add unit tests
+3. Add unit tests <DONE>
 4. Maybe use usb as bank cards <DONE>
 5. Change PIN ability <DONE>
 6. Put LOCK into accuont that has been locked <DONE>
@@ -30,38 +30,11 @@ static char account_num[ACCOUNT_NUM];
 
 bool update_flag = false;
 /********************************************************************************/
-/*                               PRIVATE FUNCTIONS                              */
+/*                                 PIN FUNCTIONS                                */
 /********************************************************************************/
-bool is_new_account( const char * file_name )
-{
-	if ( -1 == access( file_name, F_OK ) )
-		return true;
-	else
-		return false;
-}
-
 bool is_pin_correct( const char * entered_pin )
 {
 	return PIN_SIZE == strlen(entered_pin);
-}
-
-atm_status_t set_up_new_account( const char * file_name )
-{
-	printf( "Please input your new PIN: \n" );
-	scanf( "%s", pin );
-
-	if ( !is_pin_correct( pin )) {
-
-		printf( "Wrong PIN size. It has to be %d digits\n", PIN_SIZE );
-		return ATM_FAILURE;
-	}
-
-	FILE * f = fopen( file_name, "w+" );
-	fprintf( f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance() );
-	fclose( f );
-
-	printf( "Your new account has been set up.\n" );
-	return ATM_SUCCESS;
 }
 
 atm_status_t pin_check( void )
@@ -81,6 +54,35 @@ atm_status_t pin_check( void )
 	}
 
 	return ATM_WRONG_PIN;
+}
+/********************************************************************************/
+/*                               ACCOUNT FUNCTIONS                              */
+/********************************************************************************/
+bool is_new_account( const char * file_name )
+{
+	if ( -1 == access( file_name, F_OK ) )
+		return true;
+	else
+		return false;
+}
+
+atm_status_t set_up_new_account( const char * file_name )
+{
+	printf( "Please input your new PIN: \n" );
+	scanf( "%s", pin );
+
+	if ( !is_pin_correct( pin )) {
+
+		printf( "Wrong PIN size. It has to be %d digits\n", PIN_SIZE );
+		return ATM_FAILURE;
+	}
+
+	FILE * f = fopen( file_name, "w+" );
+	fprintf( f, "%s: %s\n%s: %lf\n", "PIN", pin, "Balance", atm_get_balance() );
+	fclose( f );
+
+	printf( "Your new account has been set up.\n" );
+	return ATM_SUCCESS;
 }
 
 void lock_account( const char * file_name )

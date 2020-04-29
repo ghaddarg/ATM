@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "inc/libusb/libusb.h"
+#include "libusb/libusb.h"
 #include "inc/atm_usb.h"
 
 static libusb_device ** devices;

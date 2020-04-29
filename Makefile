@@ -1,45 +1,95 @@
 #The compiler: gcc for C programs, define as g++ for C++
-CC = gcc
-CXX = g++
-RM = rm
+CC 		= gcc
+RM 		= rm
+AR		= ar
+MKDIR 	= mkdir -p
 
-# The build target executable
-TARGET = atm
+OUTDIR	= exe
+SRCDIR	= src
+LIBDIR	= lib
+TESTDIR	= test
+OBJDIR	= obj
+TARGET 	= atm
 
-#Defines any directories containing header files other than /usr/include
-INCLUDES = .
+##################################################################################
+#                                   SRCS
+##################################################################################
+#Define source files
+SRC = \
+	$(SRCDIR)/main.c \
+	$(SRCDIR)/atm.c \
+	$(SRCDIR)/atm_usb.c
 
-#Defines library paths in addition to /usr/lib
-LDFLAGS = -L/usr/local/lib
+OBJS := $(SRC:.c=.o)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+##################################################################################
+#                                   GCC FLAGS
+##################################################################################
+#Compiler flags:
+# -g     adds debugging information to the executable file
+# -Wall  turns on most, but not all, compiler warnings
+CFLAGS = -g -Wall -Wextra -O0 -std=gnu99 \
+		 -I. \
+		 -I$(LIBDIR)
 
 #Defines any libraries to link into executable
 LIB = -lgtest -lpthread -lusb-1.0
 
-#Define source files
-SRC = src/main.c src/atm.c src/atm_usb.c
-OBJS = $(SRC:.c=.o)
-TEST = test/test.cc
-
-#Compiler flags:
-# -g     adds debugging information to the executable file
-# -Wall  turns on most, but not all, compiler warnings
-CFLAGS = -g -Wall -I$(INCLUDES)
-
+#Defines library paths in addition to /usr/lib
+LDFLAGS = -L/usr/local/lib $(LIB) 
+##################################################################################
+#                              MAIN MAKEFILE
+##################################################################################
 .PHONY:
 
-all: $(TARGET)
+all: dir $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS) $(LIB)
+dir:
+	${MKDIR} ${OUTDIR}
 
-.c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+lib$(TARGET).a: $(OBJS)
+	$(AR) rcs lib$(TARGET).a $(OBJS)
 
-check:
-	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS) $(LIB)
+$(TARGET): lib$(TARGET).a
+	$(CC) $(CFLAGS) $(SRCDIR)/$@.c -o $(OUTDIR)/$@ lib$(TARGET).a $(LDFLAGS) 
 
-clean:
-	$(RM) -rf $(TARGET)\
+#.c.o:
+#	$(CC) $(CFLAGS) -c $< -o $@
+
+check: run_test
+#	$(CXX) -I/usr/local/include/ $(TEST) $(LDFLAGS) $(LIB)
+
+test: clean build_test
+
+clean: clean_test
+	$(RM) -rf $(OUTDIR) \
 		*.dSYM \
 		$(OBJS) \
-		.DS_Store
+		.DS_Store inc/.DS_Store \
+		lib$(TARGET).a
+##################################################################################
+#                              TEST
+##################################################################################
+build_test:
+	$(call make-test)
+clean_test:
+	$(call clean-test)
+run_test:
+	$(call run-test)
+##################################################################################
+#                              DEFINES
+##################################################################################
+define make-test
+	cd $(TESTDIR); \
+	make;
+endef
+define clean-test
+	cd $(TESTDIR); \
+	make clean;
+endef
+define run-test
+	cd $(TESTDIR); \
+	make check;
+endef

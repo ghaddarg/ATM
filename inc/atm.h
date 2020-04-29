@@ -1,6 +1,11 @@
 #ifndef ATM_H
 #define ATM_H
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -34,5 +39,9 @@ atm_status_t atm_deposit(uint16_t amount);
 /*                                PUBLIC FUNCTIONS                              */
 /********************************************************************************/
 void atm_start(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATM_H */

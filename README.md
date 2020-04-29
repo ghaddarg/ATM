@@ -18,7 +18,7 @@ This is version 1
 ## TODO:
 1. Add file save/load for NVM <DONE>
 2. Add Cmake
-3. Add unit tests
+3. Add unit tests <DONE>
 4. Maybe use usb as bank cards <DONE>
 5. Change PIN ability <DONE>
 6. Put LOCK into accuont that has been locked <DONE>
